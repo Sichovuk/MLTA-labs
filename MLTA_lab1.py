@@ -4,13 +4,13 @@ import pprint
 import networkx as nx
 import matplotlib.pyplot as plt
 
-# ------------------ ГРАФ З РИСУНКА ------------------
+# -----------------------------------------------------------
+#          ДВА ГРАФИ (НЕОРІЄНТОВАНИЙ + ОРІЄНТОВАНИЙ)
+# -----------------------------------------------------------
 
-DIRECTED = False
-
-VERTICES = ['a', 'b', 'c', 'd', 'e', 'f']
-
-EDGES = [
+# НЕорієнтований граф
+VERTICES_UNDIR = ['a', 'b', 'c', 'd', 'e', 'f']
+EDGES_UNDIR = [
     ('a', 'b'),
     ('a', 'c'),
     ('b', 'd'),
@@ -22,7 +22,47 @@ EDGES = [
     ('d', 'f'),
 ]
 
-# ------------------ ПЕРЕТВОРЕННЯ ------------------
+# Орієнтований граф
+VERTICES_DIR = ['a', 'b', 'c', 'd', 'e', 'f']
+EDGES_DIR = [
+    ('a', 'b'),
+    ('a', 'c'),
+    ('a', 'e'),
+    ('b', 'a'),
+    ('b', 'c'),
+    ('b', 'f'),
+    ('e', 'a'),
+    ('e', 'f'),
+    ('e', 'd'),
+    ('f', 'b'),
+    ('f', 'd'),
+]
+
+# -----------------------------------------------------------
+#                КООРДИНАТИ ДЛЯ ВІЗУАЛІЗАЦІЇ
+# -----------------------------------------------------------
+
+directed_positions = {
+    'a': (-0.400,  0.500),
+    'b': ( 0.400,  0.500),
+    'c': ( 0.000,  0.100),
+    'e': (-0.600, -0.500),
+    'f': ( 0.600, -0.500),
+    'd': ( 0.000, -0.700),
+}
+
+undirected_positions = {
+    'a': (-0.400,  0.500),
+    'b': ( 0.400,  0.500),
+    'c': (-0.600, -0.500),
+    'e': ( 0.000,  0.100),
+    'd': ( 0.600, -0.500),
+    'f': ( 0.000, -0.700),
+}
+
+# -----------------------------------------------------------
+#                ПЕРЕТВОРЕННЯ ПРЕДСТАВЛЕНЬ
+# -----------------------------------------------------------
 
 def edges_to_adjacency_matrix(vertices, edges, directed=False):
     n = len(vertices)
@@ -64,53 +104,87 @@ def adjacency_matrix_to_adj_list(vertices, A):
     return adj
 
 
-# ------------------ ФУНКЦІЇ ДЛЯ GUI ------------------
+# -----------------------------------------------------------
+#             ВИБІР ПОТОЧНОГО ГРАФУ (directed/undirected)
+# -----------------------------------------------------------
+
+def get_graph_data():
+    if graph_type_var.get() == "undirected":
+        return VERTICES_UNDIR, EDGES_UNDIR, False, undirected_positions
+    else:
+        return VERTICES_DIR, EDGES_DIR, True, directed_positions
+
+
+# -----------------------------------------------------------
+#                GUI ФУНКЦІЇ ДЛЯ ВИВОДУ
+# -----------------------------------------------------------
 
 def show_adjacency_matrix():
-    A = edges_to_adjacency_matrix(VERTICES, EDGES)
+    V, E, directed, _ = get_graph_data()
+    A = edges_to_adjacency_matrix(V, E, directed)
     text = "\n".join(" ".join(str(x) for x in row) for row in A)
     messagebox.showinfo("Матриця суміжності", text)
 
 
 def show_incidence_matrix():
-    Inc = edges_to_incidence_matrix(VERTICES, EDGES)
+    V, E, directed, _ = get_graph_data()
+    Inc = edges_to_incidence_matrix(V, E, directed)
     text = "\n".join(" ".join(str(x) for x in row) for row in Inc)
     messagebox.showinfo("Матриця інцидентності", text)
 
 
 def show_edge_list():
-    text = "\n".join(f"{i+1}: {e}" for i, e in enumerate(EDGES))
+    _, E, _, _ = get_graph_data()
+    text = "\n".join(f"{i+1}: {e}" for i, e in enumerate(E))
     messagebox.showinfo("Список ребер", text)
 
 
 def show_adj_list():
-    A = edges_to_adjacency_matrix(VERTICES, EDGES)
-    adj = adjacency_matrix_to_adj_list(VERTICES, A)
+    V, E, directed, _ = get_graph_data()
+    A = edges_to_adjacency_matrix(V, E, directed)
+    adj = adjacency_matrix_to_adj_list(V, A)
     text = pprint.pformat(adj)
     messagebox.showinfo("Список суміжності", text)
 
 
 def draw_graph():
-    G = nx.MultiGraph()  # щоб підтримувати паралельні ребра
-    G.add_nodes_from(VERTICES)
-    G.add_edges_from(EDGES)
+    V, E, directed, pos = get_graph_data()
 
-    pos = nx.spring_layout(G, seed=42)
+    if directed:
+        G = nx.DiGraph()
+    else:
+        G = nx.MultiGraph()
 
-    plt.figure(figsize=(6, 6))
-    nx.draw(G, pos, with_labels=True, node_color="lightblue", node_size=1200, font_size=14)
-    plt.title("Граф зі світлини")
+    G.add_nodes_from(V)
+    G.add_edges_from(E)
+
+    plt.figure(figsize=(7, 7))
+    nx.draw(
+        G, pos,
+        with_labels=True,
+        node_color="lightblue" if directed else "orange",
+        node_size=1300,
+        font_size=14,
+        arrows=directed,
+        arrowstyle='-|>' if directed else '-',
+        arrowsize=20,
+    )
+
+    plt.title("Орієнтований граф" if directed else "Неорієнтований граф")
     plt.show()
 
 
-# ------------------ ЗБЕРЕЖЕННЯ ------------------
+# -----------------------------------------------------------
+#                    ЗБЕРЕЖЕННЯ У ФАЙЛ
+# -----------------------------------------------------------
 
 def save_adjacency():
+    V, E, directed, _ = get_graph_data()
     file = filedialog.asksaveasfilename(defaultextension=".txt")
     if not file:
         return
 
-    A = edges_to_adjacency_matrix(VERTICES, EDGES)
+    A = edges_to_adjacency_matrix(V, E, directed)
     with open(file, "w") as f:
         for row in A:
             f.write(" ".join(str(x) for x in row) + "\n")
@@ -119,11 +193,12 @@ def save_adjacency():
 
 
 def save_incidence():
+    V, E, directed, _ = get_graph_data()
     file = filedialog.asksaveasfilename(defaultextension=".txt")
     if not file:
         return
 
-    Inc = edges_to_incidence_matrix(VERTICES, EDGES)
+    Inc = edges_to_incidence_matrix(V, E, directed)
     with open(file, "w") as f:
         for row in Inc:
             f.write(" ".join(str(x) for x in row) + "\n")
@@ -132,24 +207,26 @@ def save_incidence():
 
 
 def save_edge_list():
+    _, E, _, _ = get_graph_data()
     file = filedialog.asksaveasfilename(defaultextension=".txt")
     if not file:
         return
 
     with open(file, "w") as f:
-        for i, e in enumerate(EDGES):
+        for i, e in enumerate(E):
             f.write(f"{i+1}: {e}\n")
 
     messagebox.showinfo("Успіх", "Список ребер збережено!")
 
 
 def save_adj_list():
+    V, E, directed, _ = get_graph_data()
     file = filedialog.asksaveasfilename(defaultextension=".txt")
     if not file:
         return
 
-    A = edges_to_adjacency_matrix(VERTICES, EDGES)
-    adj = adjacency_matrix_to_adj_list(VERTICES, A)
+    A = edges_to_adjacency_matrix(V, E, directed)
+    adj = adjacency_matrix_to_adj_list(V, A)
 
     with open(file, "w", encoding="utf-8") as f:
         for v in adj:
@@ -158,10 +235,19 @@ def save_adj_list():
     messagebox.showinfo("Успіх", "Список суміжності збережено!")
 
 
-# ------------------ GUI ------------------
+# -----------------------------------------------------------
+#                           GUI
+# -----------------------------------------------------------
 
 root = tk.Tk()
 root.title("Лабораторна робота №1 — Графи")
+
+graph_type_var = tk.StringVar(value="undirected")
+
+tk.Label(root, text="Оберіть тип графа:", font=("Arial", 14)).pack(pady=10)
+
+tk.Radiobutton(root, text="Неорієнтований граф", variable=graph_type_var, value="undirected").pack()
+tk.Radiobutton(root, text="Орієнтований граф", variable=graph_type_var, value="directed").pack()
 
 tk.Label(root, text="Виберіть дію:", font=("Arial", 14)).pack(pady=10)
 
